@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"microservices/pkg/jsonutil"
 	"net/http"
@@ -48,9 +47,6 @@ func (h *GatewayHandler) proxyRequest(target string, w http.ResponseWriter, r *h
 		req.Host = url.Host
 	}
 
-	// logging the forward proxy request
-	fmt.Printf("\nForward request:%v", r.URL)
-
 	proxy.ServeHTTP(w, r)
 }
 
@@ -60,21 +56,18 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case strings.HasPrefix(path, "/auth"):
-		// Strip the /auth prefix so the auth service sees /register instead of /auth/register
-		// Is this desired? The user didn't specify, but it's common practice.
-		// Let's assume the auth service expects /register.
 		http.StripPrefix("/auth", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h.proxyRequest(h.authServiceURL, w, r)
+			go h.proxyRequest(h.authServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
 	case strings.HasPrefix(path, "/payments"):
 		http.StripPrefix("/payments", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h.proxyRequest(h.paymentServiceURL, w, r)
+			go h.proxyRequest(h.paymentServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
 	case strings.HasPrefix(path, "/ledger"):
 		http.StripPrefix("/ledger", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h.proxyRequest(h.ledgerServiceURL, w, r)
+			go h.proxyRequest(h.ledgerServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
 	case path == "/health":
