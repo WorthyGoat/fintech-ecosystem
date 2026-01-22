@@ -39,9 +39,11 @@ func extractUserIDFromToken(r *http.Request) (string, error) {
 func (h *AuthHandler) GenerateAPIKey(w http.ResponseWriter, r *http.Request) {
 	userID, err := extractUserIDFromToken(r)
 	if err != nil || userID == "" {
+		log.Printf("GenerateAPIKey: Validation failed. userID: %s, err: %v", userID, err)
 		jsonutil.WriteErrorJSON(w, "Unauthorized")
 		return
 	}
+	log.Printf("GenerateAPIKey: Success for user %s", userID)
 
 	var req GenerateAPIKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -226,5 +228,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Login: Success for user %s", user.Email)
 	jsonutil.WriteJSON(w, http.StatusOK, LoginResponse{Token: token})
 }

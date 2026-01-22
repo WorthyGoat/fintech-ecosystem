@@ -9,11 +9,14 @@ import (
 	"microservices/pkg/jwtutil"
 	"net/http"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type PaymentHandler struct {
 	repo       *payment.Repository
 	bankClient bank.Client
+	rdb        *redis.Client
 }
 
 // IdempotencyMiddleware wraps a handler to ensure idempotency.
@@ -193,6 +196,14 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 		jsonutil.WriteErrorJSON(w, "Failed to update payment status")
 		return
 	}
+
+	// Publish Webhook Event
+	event := map[string]interface{}{
+		"type": "payment.succeeded",
+		"data": intent,
+	}
+	eventBody, _ := json.Marshal(event)
+	h.rdb.Publish(r.Context(), "webhook_events", eventBody)
 
 	intent.Status = "succeeded"
 	jsonutil.WriteJSON(w, http.StatusOK, intent)

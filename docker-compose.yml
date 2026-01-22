@@ -77,10 +77,12 @@ services:
     container_name: microservices_payments
     environment:
       - DB_DSN=postgres://user:password@payments_db:5432/payments?sslmode=disable
+      - REDIS_ADDR=redis:6379
     ports:
       - "8082:8082"
     depends_on:
       - payments_db
+      - redis
     networks:
       - microservices-net
 

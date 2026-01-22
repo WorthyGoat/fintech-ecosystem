@@ -2,13 +2,16 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"os"
-
 	"microservices/internal/payment"
 	"microservices/pkg/bank"
 	"microservices/pkg/database"
 	"microservices/pkg/jsonutil"
+	"net/http"
+	"os"
+
+	"context"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -38,12 +41,25 @@ func main() {
 		}
 	}
 
+	// Initialize Redis
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Printf("Warning: Redis connection failed in Payments: %v", err)
+	}
+
 	// Initialize dependencies
 	repo := payment.NewRepository(db)
 	bankClient := bank.NewMockClient()
 	handler := &PaymentHandler{
 		repo:       repo,
 		bankClient: bankClient,
+		rdb:        rdb,
 	}
 
 	mux := http.NewServeMux()

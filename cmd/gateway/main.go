@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -23,7 +24,8 @@ type GatewayHandler struct {
 	authServiceURL    string
 	paymentServiceURL string
 	ledgerServiceURL  string
-	redisClient       *redis.Client
+	rdb               *redis.Client
+	upgrader          websocket.Upgrader
 }
 
 // NewGatewayHandler creates a new instance of GatewayHandler.
@@ -32,7 +34,10 @@ func NewGatewayHandler(auth, payment, ledger string, rdb *redis.Client) *Gateway
 		authServiceURL:    auth,
 		paymentServiceURL: payment,
 		ledgerServiceURL:  ledger,
-		redisClient:       rdb,
+		rdb:               rdb,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		},
 	}
 }
 
@@ -70,13 +75,13 @@ func (h *GatewayHandler) checkRateLimit(ctx context.Context, keyHash string) (bo
 	window := time.Now().Unix() / 60
 	redisKey := fmt.Sprintf("rate_limit:%s:%d", keyHash, window)
 
-	count, err := h.redisClient.Incr(ctx, redisKey).Result()
+	count, err := h.rdb.Incr(ctx, redisKey).Result()
 	if err != nil {
 		return false, err
 	}
 
 	if count == 1 {
-		h.redisClient.Expire(ctx, redisKey, 60*time.Second)
+		h.rdb.Expire(ctx, redisKey, 60*time.Second)
 	}
 
 	return count <= 100, nil
@@ -111,9 +116,16 @@ func (h *GatewayHandler) proxyRequest(target string, w http.ResponseWriter, r *h
 // ServeHTTP implements the http.Handler interface with Middleware.
 func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	log.Printf("Gateway: Incoming %s %s", r.Method, path)
 
 	// Public Endpoints / Auth Management (JWT based or public)
+	if path == "/ws" {
+		h.handleWebSocket(w, r)
+		return
+	}
+
 	if strings.HasPrefix(path, "/auth") || path == "/health" {
+		log.Printf("Gateway: Routing public path %s", path)
 		h.routePublic(w, r)
 		return
 	}
@@ -169,6 +181,26 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		jsonutil.WriteErrorJSON(w, "Not Found")
+	}
+}
+
+func (h *GatewayHandler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := h.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WS upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	pubsub := h.rdb.Subscribe(r.Context(), "webhook_events")
+	defer pubsub.Close()
+
+	ch := pubsub.Channel()
+	for msg := range ch {
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg.Payload)); err != nil {
+			log.Printf("WS write failed: %v", err)
+			break
+		}
 	}
 }
 
