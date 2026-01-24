@@ -106,7 +106,7 @@ func main() {
 		log.Printf("Warning: Failed to connect to RabbitMQ: %v", err)
 	} else {
 		defer rabbitClient.Close()
-		if err := rabbitClient.DeclareQueue("notifications"); err != nil {
+		if _, err := rabbitClient.DeclareQueue("notifications"); err != nil {
 			log.Printf("Failed to declare queue: %v", err)
 		}
 	}
