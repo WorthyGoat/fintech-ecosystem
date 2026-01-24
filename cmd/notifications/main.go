@@ -65,7 +65,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
-	defer rabbitClient.Close()
+	defer func() {
+		rabbitClient.Close()
+	}()
 
 	// Declare notification queues with DLQ support
 	queues := []string{"email.notifications", "sms.notifications", "web.notifications", "webhook.notifications"}
@@ -115,7 +117,11 @@ func main() {
 	// Initialize Kafka consumer
 	brokers := strings.Split(kafkaBrokers, ",")
 	kafkaConsumer := messaging.NewKafkaConsumer(brokers, kafkaTopic, kafkaGroupID)
-	defer kafkaConsumer.Close()
+	defer func() {
+		if err := kafkaConsumer.Close(); err != nil {
+			log.Printf("Failed to close Kafka consumer: %v", err)
+		}
+	}()
 
 	// Consume events from Kafka and route to RabbitMQ
 	kafkaConsumer.Consume(ctx, func(key string, value []byte) error {

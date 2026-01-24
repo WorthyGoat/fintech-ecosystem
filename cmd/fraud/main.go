@@ -88,7 +88,9 @@ func main() {
 		CircuitBreakerEnabled: true,
 	})
 	if rabbitClient != nil {
-		defer rabbitClient.Close()
+		defer func() {
+			rabbitClient.Close()
+		}()
 		if _, err := rabbitClient.DeclareQueue("risk_alerts"); err != nil {
 			log.Printf("Failed to declare risk_alerts queue: %v", err)
 		}
