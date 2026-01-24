@@ -25,13 +25,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to Payments DB: %v", err)
 	}
-	defer payDB.Close()
+	defer func() {
+		if err := payDB.Close(); err != nil {
+			log.Printf("Failed to close Payments DB: %v", err)
+		}
+	}()
 
 	ledgerDB, err := database.Connect(ledgerDSN)
 	if err != nil {
 		log.Fatalf("Failed to connect to Ledger DB: %v", err)
 	}
-	defer ledgerDB.Close()
+	defer func() {
+		if err := ledgerDB.Close(); err != nil {
+			log.Printf("Failed to close Ledger DB: %v", err)
+		}
+	}()
 
 	// Start Metrics Server
 	monitoring.StartMetricsServer(":8081")
@@ -53,7 +61,11 @@ func reconcile(payDB, ledgerDB *sql.DB) {
 		log.Printf("Reconciler: Error fetching payments: %v", err)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Reconciler: Failed to close rows: %v", err)
+		}
+	}()
 
 	discrepancies := 0
 	totalChecked := 0

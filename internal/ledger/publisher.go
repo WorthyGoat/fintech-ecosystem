@@ -48,10 +48,6 @@ func (p *OutboxPublisher) processOutbox(ctx context.Context) {
 	// Update lag metric
 	// Note: For high precision, we might want a separate count query,
 	// but updating based on fetch results is a good proxy for relative lag.
-	if len(events) >= 50 {
-		// If we hit the limit, there's likely more. We could do a COUNT(*) if needed.
-		// For now, let's just use the current count as a floor.
-	}
 	OutboxLag.Set(float64(len(events)))
 
 	for _, e := range events {

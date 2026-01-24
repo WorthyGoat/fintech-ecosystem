@@ -50,7 +50,11 @@ func main() {
 		}
 	}
 	if db != nil {
-		defer db.Close()
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Printf("Failed to close DB: %v", err)
+			}
+		}()
 	}
 
 	// Initialize Redis
@@ -78,7 +82,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("did not connect to ledger gRPC: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close gRPC connection: %v", err)
+		}
+	}()
 	ledgerClient := pb.NewLedgerServiceClient(conn)
 
 	// Setup Kafka Producer
@@ -88,7 +96,11 @@ func main() {
 	}
 	brokers := strings.Split(kafkaBrokers, ",")
 	kafkaProducer := messaging.NewKafkaProducer(brokers, "payments")
-	defer kafkaProducer.Close()
+	defer func() {
+		if err := kafkaProducer.Close(); err != nil {
+			log.Printf("Failed to close Kafka producer: %v", err)
+		}
+	}()
 
 	// Setup RabbitMQ Client
 	rabbitURL := os.Getenv("RABBITMQ_URL")
@@ -121,7 +133,11 @@ func main() {
 	if err != nil {
 		log.Printf("Failed to init tracer: %v", err)
 	} else {
-		defer shutdown(context.Background())
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				log.Printf("Failed to shutdown tracer: %v", err)
+			}
+		}()
 	}
 
 	// Start Metrics Server

@@ -44,7 +44,11 @@ func main() {
 		}
 	}
 	if db != nil {
-		defer db.Close()
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Printf("Failed to close DB: %v", err)
+			}
+		}()
 	}
 
 	repo := auth.NewRepository(db)
@@ -60,7 +64,11 @@ func main() {
 	if err != nil {
 		log.Printf("Failed to init tracer: %v", err)
 	} else {
-		defer shutdown(context.Background())
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				log.Printf("Failed to shutdown tracer: %v", err)
+			}
+		}()
 	}
 
 	// Start Metrics Server

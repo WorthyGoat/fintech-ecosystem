@@ -47,15 +47,16 @@ func initConfig() {
 			if err != nil {
 				fmt.Printf("Warning: failed to create config file: %v\n", err)
 			} else {
-				f.Close()
+				if err := f.Close(); err != nil {
+					fmt.Printf("Warning: failed to close config file: %v\n", err)
+				}
 			}
 		}
 	}
 
 	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err == nil {
-		// fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	// Ignore error if config file not found, just use defaults/env
+	_ = viper.ReadInConfig()
 }
 
 func main() {

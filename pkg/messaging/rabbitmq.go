@@ -141,7 +141,9 @@ func (r *RabbitMQClient) connect() error {
 
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection during setup: %v", closeErr)
+		}
 		return fmt.Errorf("failed to open a channel: %w", err)
 	}
 
@@ -385,10 +387,14 @@ func (r *RabbitMQClient) Close() {
 
 	r.isClosed = true
 	if r.ch != nil {
-		r.ch.Close()
+		if err := r.ch.Close(); err != nil {
+			log.Printf("Failed to close RabbitMQ channel: %v", err)
+		}
 	}
 	if r.conn != nil {
-		r.conn.Close()
+		if err := r.conn.Close(); err != nil {
+			log.Printf("Failed to close RabbitMQ connection: %v", err)
+		}
 	}
 }
 
@@ -434,14 +440,15 @@ func (cb *CircuitBreaker) RecordSuccess() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	if cb.state == StateHalfOpen {
+	switch cb.state {
+	case StateHalfOpen:
 		cb.successCounter++
 		if cb.successCounter >= 3 { // Arbitrary success threshold to close
 			cb.state = StateClosed
 			cb.failures = 0
 			cb.successCounter = 0
 		}
-	} else if cb.state == StateOpen {
+	case StateOpen:
 		// Should have been half-open first, but if we succeeded, reset
 		cb.state = StateClosed
 		cb.failures = 0

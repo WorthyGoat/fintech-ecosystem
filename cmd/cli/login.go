@@ -43,7 +43,11 @@ var loginCmd = &cobra.Command{
 			fmt.Printf("Error connecting to gateway: %v\n", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("Warning: failed to close response body: %v\n", err)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			fmt.Println("Login failed. Check your credentials.")
@@ -69,7 +73,11 @@ var loginCmd = &cobra.Command{
 			fmt.Printf("Error generating API key: %v\n", err)
 			return
 		}
-		defer respKey.Body.Close()
+		defer func() {
+			if err := respKey.Body.Close(); err != nil {
+				fmt.Printf("Warning: failed to close key response body: %v\n", err)
+			}
+		}()
 
 		if respKey.StatusCode != http.StatusCreated {
 			fmt.Println("Failed to generate API key after login. Status:", respKey.Status)

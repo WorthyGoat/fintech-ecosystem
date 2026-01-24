@@ -200,7 +200,11 @@ func (r *Repository) GetUnprocessedEvents(ctx context.Context, limit int) ([]Out
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var events []OutboxEvent
 	for rows.Next() {

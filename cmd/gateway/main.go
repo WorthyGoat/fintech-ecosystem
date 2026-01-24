@@ -192,10 +192,18 @@ func (h *GatewayHandler) handleWebSocket(w http.ResponseWriter, r *http.Request)
 		log.Printf("WS upgrade failed: %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close WS connection: %v", err)
+		}
+	}()
 
 	pubsub := h.rdb.Subscribe(r.Context(), "webhook_events")
-	defer pubsub.Close()
+	defer func() {
+		if err := pubsub.Close(); err != nil {
+			log.Printf("Failed to close Redis PubSub: %v", err)
+		}
+	}()
 
 	ch := pubsub.Channel()
 	for msg := range ch {
@@ -263,7 +271,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("did not connect to auth gRPC: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close gRPC connection: %v", err)
+		}
+	}()
 	authClient := pb.NewAuthServiceClient(conn)
 
 	// Initialize Tracer
@@ -276,7 +288,11 @@ func main() {
 	if err != nil {
 		log.Printf("Failed to init tracer: %v", err)
 	} else {
-		defer shutdown(context.Background())
+		defer func() {
+			if err := shutdown(context.Background()); err != nil {
+				log.Printf("Failed to shutdown tracer: %v", err)
+			}
+		}()
 	}
 
 	// Start Metrics Server

@@ -41,7 +41,11 @@ var listenCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("dial:", err)
 		}
-		defer c.Close()
+		defer func() {
+			if err := c.Close(); err != nil {
+				log.Printf("Failed to close WS connection: %v", err)
+			}
+		}()
 
 		fmt.Printf("Forwarding events to %s\n", forwardURL)
 		fmt.Println("Ready! Waiting for events...")
@@ -67,7 +71,9 @@ var listenCmd = &cobra.Command{
 					fmt.Printf("Failed to forward event: %v\n", err)
 				} else {
 					fmt.Printf("Forwarded with status: %s\n", resp.Status)
-					resp.Body.Close()
+					if err := resp.Body.Close(); err != nil {
+						fmt.Printf("Failed to close response body: %v\n", err)
+					}
 				}
 			}
 		}()
