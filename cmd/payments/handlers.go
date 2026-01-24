@@ -47,7 +47,9 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 			w.Header().Set("X-Idempotency-Hit", "true")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(record.StatusCode)
-			w.Write([]byte(record.ResponseBody))
+			if _, err := w.Write([]byte(record.ResponseBody)); err != nil {
+				log.Printf("Failed to write cached response: %v", err)
+			}
 			return
 		}
 

@@ -89,7 +89,9 @@ func main() {
 	})
 	if rabbitClient != nil {
 		defer rabbitClient.Close()
-		rabbitClient.DeclareQueue("risk_alerts")
+		if _, err := rabbitClient.DeclareQueue("risk_alerts"); err != nil {
+			log.Printf("Failed to declare risk_alerts queue: %v", err)
+		}
 	}
 
 	tracker := NewVelocityTracker()
@@ -120,7 +122,9 @@ func main() {
 					"time":    time.Now().Format(time.RFC3339),
 				}
 				body, _ := json.Marshal(alert)
-				rabbitClient.Publish(context.Background(), "risk_alerts", body)
+				if err := rabbitClient.Publish(context.Background(), "risk_alerts", body); err != nil {
+					log.Printf("Failed to publish risk alert: %v", err)
+				}
 			}
 		}
 

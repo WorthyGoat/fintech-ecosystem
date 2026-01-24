@@ -73,7 +73,9 @@ func main() {
 		if _, err := rabbitClient.DeclareQueueWithDLQ(q); err != nil {
 			log.Printf("Warning: Failed to declare queue %s with DLQ: %v", q, err)
 			// Fallback to regular queue
-			rabbitClient.DeclareQueue(q)
+			if _, err := rabbitClient.DeclareQueue(q); err != nil {
+				log.Printf("Failed to declare fallback queue %s: %v", q, err)
+			}
 		}
 	}
 

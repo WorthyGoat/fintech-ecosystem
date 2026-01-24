@@ -72,6 +72,7 @@ var listenCmd = &cobra.Command{
 			}
 		}()
 
+		// Wait for shutdown
 		select {
 		case <-done:
 			return
@@ -82,9 +83,7 @@ var listenCmd = &cobra.Command{
 				log.Println("write close:", err)
 				return
 			}
-			select {
-			case <-done:
-			}
+			<-done
 		}
 	},
 }

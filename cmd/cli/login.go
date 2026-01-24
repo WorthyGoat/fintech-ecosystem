@@ -53,7 +53,10 @@ var loginCmd = &cobra.Command{
 		var loginResp struct {
 			Token string `json:"token"`
 		}
-		json.NewDecoder(resp.Body).Decode(&loginResp)
+		if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
+			fmt.Printf("Failed to decode login response: %v\n", err)
+			return
+		}
 
 		// Get an API key for the user (test environment by default)
 		client := &http.Client{}
@@ -76,7 +79,10 @@ var loginCmd = &cobra.Command{
 		var keyResp struct {
 			Key string `json:"key"`
 		}
-		json.NewDecoder(respKey.Body).Decode(&keyResp)
+		if err := json.NewDecoder(respKey.Body).Decode(&keyResp); err != nil {
+			fmt.Printf("Failed to decode api key: %v\n", err)
+			return
+		}
 
 		// Save to config
 		viper.Set("api_key", keyResp.Key)

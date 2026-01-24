@@ -158,22 +158,21 @@ func (r *RabbitMQClient) connect() error {
 }
 
 func (r *RabbitMQClient) handleReconnect() {
-	for {
-		r.mu.RLock()
-		if r.isClosed {
-			r.mu.RUnlock()
-			return
-		}
-		notifyClose := r.notifyConnClose
+	r.mu.RLock()
+	if r.isClosed {
 		r.mu.RUnlock()
-
-		err := <-notifyClose
-		if err != nil {
-			log.Printf("RabbitMQ connection closed: %v. Reconnecting...", err)
-			r.reconnect()
-		}
-		return // reconnect creates a new handler loop
+		return
 	}
+	notifyClose := r.notifyConnClose
+	r.mu.RUnlock()
+
+	// Block until connection is closed
+	err := <-notifyClose
+	if err != nil {
+		log.Printf("RabbitMQ connection closed: %v. Reconnecting...", err)
+		r.reconnect()
+	}
+	// If err is nil, it was a graceful close (e.g. r.Close called), so we just exit.
 }
 
 func (r *RabbitMQClient) reconnect() {
