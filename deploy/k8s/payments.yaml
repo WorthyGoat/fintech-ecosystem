@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments
+  namespace: fintech-ecosystem
+  labels:
+    app: payments
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payments
+  template:
+    metadata:
+      labels:
+        app: payments
+    spec:
+      containers:
+      - name: payments
+        image: microservice:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SERVICE_NAME
+          value: "payments"
+        - name: DB_DSN
+          value: "postgres://user:password@postgres:5432/payments?sslmode=disable"
+        - name: REDIS_ADDR
+          value: "redis:6379"
+        ports:
+        - containerPort: 8082
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments
+  namespace: fintech-ecosystem
+spec:
+  selector:
+    app: payments
+  ports:
+  - port: 8082
+    targetPort: 8082

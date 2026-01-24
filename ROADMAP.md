@@ -23,9 +23,9 @@ To provide a developer-first, scalable, and open-source financial infrastructure
 ## Phase 2: Hyper-Scale Infrastructure (Q2)
 *Focus: Reliability, Observability, and Performance.*
 
-- [ ] **Kubernetes Support**:
-    - Helm Charts for "one-click" deployment.
-    - K8s manifests for all microservices (`deploy/k8s`).
+- [x] **Kubernetes Support**:
+    - [x] K8s manifests for all microservices (`deploy/k8s`).
+    - [ ] Helm Charts for "one-click" deployment.
 - [ ] **Observability Stack**:
     - Distributed Tracing (OpenTelemetry + Jaeger/Tempo).
     - Centralized Metrics (Prometheus + Grafana Dashboards).

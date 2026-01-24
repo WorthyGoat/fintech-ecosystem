@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications
+  namespace: fintech-ecosystem
+  labels:
+    app: notifications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notifications
+  template:
+    metadata:
+      labels:
+        app: notifications
+    spec:
+      containers:
+      - name: notifications
+        image: microservice:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SERVICE_NAME
+          value: "notifications"
+        - name: KAFKA_BROKERS
+          value: "redpanda:9092"
+        - name: KAFKA_TOPIC
+          value: "payment_events"
+        - name: KAFKA_GROUP_ID
+          value: "notification-service"
+        - name: RABBITMQ_URL
+          value: "amqp://user:password@rabbitmq:5672/"
+        - name: REDIS_ADDR
+          value: "redis:6379"
+        - name: DATABASE_URL
+          value: "postgres://user:password@postgres:5432/microservices?sslmode=disable"
+        ports:
+        - containerPort: 8084
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications
+  namespace: fintech-ecosystem
+spec:
+  selector:
+    app: notifications
+  ports:
+  - port: 8084
+    targetPort: 8084

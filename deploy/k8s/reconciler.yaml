@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reconciler
+  namespace: fintech-ecosystem
+  labels:
+    app: reconciler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reconciler
+  template:
+    metadata:
+      labels:
+        app: reconciler
+    spec:
+      containers:
+      - name: reconciler
+        image: microservice:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SERVICE_NAME
+          value: "reconciler"
+        - name: PAYMENTS_DB_DSN
+          value: "postgres://user:password@postgres:5432/payments?sslmode=disable"
+        - name: LEDGER_DB_DSN
+          value: "postgres://user:password@postgres:5432/ledger?sslmode=disable"
+        ports:
+        - containerPort: 8081
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reconciler
+  namespace: fintech-ecosystem
+spec:
+  selector:
+    app: reconciler
+  ports:
+  - port: 8081
+    targetPort: 8081
