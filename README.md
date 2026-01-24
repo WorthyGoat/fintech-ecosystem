@@ -174,5 +174,11 @@ Connect via `psql` (passwords are in `docker-compose.yml`):
 
 ---
 
+## 🗺️ Roadmap
+
+We are actively working on making this a complete open-source alternative to Stripe. Check out our [Roadmap](ROADMAP.md) for upcoming features like Kubernetes support, a React Dashboard, and Subscription management.
+
+---
+
 ## 📜 License
 MIT
