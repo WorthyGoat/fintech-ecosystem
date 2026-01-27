@@ -30,9 +30,9 @@ To provide a developer-first, scalable, and open-source financial infrastructure
     - [x] Distributed Tracing (OpenTelemetry + Jaeger/Tempo).
     - [x] Centralized Metrics (Prometheus + Grafana Dashboards).
     - [x] Structured Logging (ELK/Loki).
-- [ ] **Database Engineering**:
-    - Automated schema migrations (`golang-migrate`).
-    - Connection pooling tuning.
+- [x] **Database Engineering**:
+    - [x] Automated schema migrations (`golang-migrate`).
+    - [x] Connection pooling tuning.
 
 ## Phase 3: Developer Experience & Platform Readiness (Q3)
 *Focus: Integration, SDKs, and "Platform" capabilities.*

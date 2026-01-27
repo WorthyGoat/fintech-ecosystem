@@ -33,16 +33,9 @@ func main() {
 	} else {
 		log.Println("Database connection established")
 
-		// Run migration explicitly
-		schema, err := os.ReadFile("internal/ledger/schema.sql")
-		if err != nil {
-			log.Printf("Failed to read schema file: %v", err)
-		} else {
-			if _, err := db.Exec(string(schema)); err != nil {
-				log.Printf("Failed to run migration: %v", err)
-			} else {
-				log.Println("Schema migration executed successfully")
-			}
+		// Run automated migrations
+		if err := database.Migrate(db, "ledger", "migrations/ledger"); err != nil {
+			log.Fatalf("Failed to run migrations: %v", err)
 		}
 	}
 	if db != nil {
