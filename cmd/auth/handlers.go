@@ -673,7 +673,7 @@ func (h *AuthHandler) TokenIntrospectionHandler(w http.ResponseWriter, r *http.R
 func writeOAuthError(w http.ResponseWriter, errorCode, description string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"error":             errorCode,
 		"error_description": description,
 	})
