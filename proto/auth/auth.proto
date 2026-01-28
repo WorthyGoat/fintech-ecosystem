@@ -31,6 +31,7 @@ message ValidateKeyResponse {
   bool valid = 1;
   string user_id = 2;
   string environment = 3;
+  string scopes = 4;
 }
 
 message ValidateTokenRequest {

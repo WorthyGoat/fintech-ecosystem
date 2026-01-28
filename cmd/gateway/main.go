@@ -14,6 +14,7 @@ import (
 	"github.com/marwan562/fintech-ecosystem/pkg/apikey"
 	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
 	"github.com/marwan562/fintech-ecosystem/pkg/observability"
+	"github.com/marwan562/fintech-ecosystem/pkg/scopes"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
@@ -61,14 +62,14 @@ func NewGatewayHandler(auth, payment, ledger string, rdb *redis.Client, authClie
 }
 
 // validateKeyWithAuthService calls the Auth service to validate the API key hash.
-func (h *GatewayHandler) validateKeyWithAuthService(ctx context.Context, keyHash string) (string, string, bool) {
+func (h *GatewayHandler) validateKeyWithAuthService(ctx context.Context, keyHash string) (string, string, string, bool) {
 	res, err := h.authClient.ValidateKey(ctx, &pb.ValidateKeyRequest{KeyHash: keyHash})
 	if err != nil {
 		log.Printf("Auth service gRPC validation call failed: %v", err)
-		return "", "", false
+		return "", "", "", false
 	}
 
-	return res.UserId, res.Environment, res.Valid
+	return res.UserId, res.Environment, res.Scopes, res.Valid
 }
 
 // checkRateLimit checks if the key has exceeded 100 req/min.
@@ -147,9 +148,19 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	keyHash := apikey.HashKey(apiKey, h.hmacSecret)
 
 	// Validate with Auth Service
-	userID, env, valid := h.validateKeyWithAuthService(r.Context(), keyHash)
+	userID, env, keyScopes, valid := h.validateKeyWithAuthService(r.Context(), keyHash)
 	if !valid {
 		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid or revoked API Key"})
+		return
+	}
+
+	// Scope Enforcement
+	requiredScope := scopes.GetRequiredScope(path, r.Method)
+	if requiredScope != "" && !scopes.HasScope(keyScopes, requiredScope) {
+		jsonutil.WriteJSON(w, http.StatusForbidden, map[string]string{
+			"error":          "Insufficient scope",
+			"required_scope": requiredScope,
+		})
 		return
 	}
 
