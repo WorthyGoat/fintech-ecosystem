@@ -176,8 +176,6 @@ func (w *WebhookWorker) ProcessWebhook(ctx context.Context, body []byte) error {
 			lastErr = err
 			continue // Retry on network error
 		}
-		defer resp.Body.Close()
-
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			// Success
 			log.Printf("[WEBHOOK] Successfully delivered %s to %s (Status: %d)", task.ID, task.URL, resp.StatusCode)
@@ -186,6 +184,7 @@ func (w *WebhookWorker) ProcessWebhook(ctx context.Context, body []byte) error {
 			if w.redis != nil {
 				w.redis.Set(ctx, fmt.Sprintf("webhook:sent:%s", task.ID), "1", 7*24*time.Hour)
 			}
+			_ = resp.Body.Close()
 			return nil
 		}
 
@@ -194,13 +193,12 @@ func (w *WebhookWorker) ProcessWebhook(ctx context.Context, body []byte) error {
 		lastErr = fmt.Errorf("server returned status: %d", resp.StatusCode)
 
 		// Don't retry on client errors (4xx) except maybe 429 (Too Many Requests) or 408 (Request Timeout)
-		// For simplicity/safety in this robust reliable delivery, we might only retry 5xx and network errors.
-		// However, standard practice often retries everything or specific codes.
-		// Use a simple heuristic: if 4xx (except 429), break.
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != 429 {
 			log.Printf("Webhook %s failed with client error %d, not retrying", task.ID, resp.StatusCode)
+			_ = resp.Body.Close()
 			return lastErr
 		}
+		_ = resp.Body.Close()
 	}
 
 	return fmt.Errorf("failed to deliver webhook %s after %d retries: %w", task.ID, w.maxRetry, lastErr)

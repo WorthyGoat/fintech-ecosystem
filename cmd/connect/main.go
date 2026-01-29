@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := database.Migrate(db, "connect", "migrations/connect"); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)

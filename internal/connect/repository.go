@@ -20,7 +20,7 @@ func (r *Repository) CreateAccount(ctx context.Context, acc *Account) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	err = tx.QueryRowContext(ctx,
 		`INSERT INTO accounts (user_id, type, country, email, business_type, status, platform_fee_percent) 
@@ -71,7 +71,7 @@ func (r *Repository) UpdateAccount(ctx context.Context, acc *Account) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.ExecContext(ctx,
 		`UPDATE accounts SET email = $1, platform_fee_percent = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
