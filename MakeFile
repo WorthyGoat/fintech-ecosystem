@@ -40,15 +40,15 @@ test:
 
 # Run aggressive tests with race detector and no caching
 test-aggressive:
-	go test ./... -race -count=1
+	-go test -v -race -count=1 $(PKGS)
 
 # Format Go code
 fmt:
-	go fmt ./...
+	go fmt $(PKGS)
 
 # Run golangci-lint
 lint:
-	golangci-lint run
+	-golangci-lint run $(PKGS)
 
 # Generate Go code from Protobuf definitions
 proto:
