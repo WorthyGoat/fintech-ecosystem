@@ -15,9 +15,10 @@ type LedgerHandler struct {
 
 func (h *LedgerHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name   string             `json:"name"`
-		Type   ledger.AccountType `json:"type"`
-		UserID *string            `json:"user_id"`
+		Name     string             `json:"name"`
+		Type     ledger.AccountType `json:"type"`
+		Currency string             `json:"currency"`
+		UserID   *string            `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonutil.WriteErrorJSON(w, "Invalid request body")
@@ -29,7 +30,11 @@ func (h *LedgerHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	acc, err := h.repo.CreateAccount(r.Context(), req.Name, req.Type, req.UserID)
+	if req.Currency == "" {
+		req.Currency = "USD" // Default
+	}
+
+	acc, err := h.repo.CreateAccount(r.Context(), req.Name, req.Type, req.Currency, req.UserID)
 	if err != nil {
 		jsonutil.WriteErrorJSON(w, "Failed to create account")
 		return

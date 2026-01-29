@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL, -- asset, liability, equity, revenue, expense
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     user_id UUID, -- Optional link to auth user
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

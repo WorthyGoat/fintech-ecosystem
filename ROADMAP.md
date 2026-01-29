@@ -61,9 +61,9 @@ To provide a developer-first, scalable, and open-source financial infrastructure
 ## Phase 5: Future & Community
 *Focus: Sustainable Open Source Growth.*
 
-- [ ] **Plugin System**: Manifest-based extensions for the Dashboard.
-- [ ] **Fraud Detection**: Basic rule-based engine.
-- [ ] **Multi-Currency Support**.
+- [x] **Plugin System**: Manifest-based extensions for the Dashboard.
+- [x] **Fraud Detection**: Basic rule-based engine.
+- [x] **Multi-Currency Support**.
 
 ---
 

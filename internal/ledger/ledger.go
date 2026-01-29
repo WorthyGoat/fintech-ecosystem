@@ -32,6 +32,7 @@ type Account struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
 	Type      AccountType `json:"type"`
+	Currency  string      `json:"currency"`
 	Balance   int64       `json:"balance"`
 	UserID    *string     `json:"user_id,omitempty"`
 	CreatedAt time.Time   `json:"created_at"`
@@ -61,17 +62,18 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateAccount(ctx context.Context, name string, accType AccountType, userID *string) (*Account, error) {
+func (r *Repository) CreateAccount(ctx context.Context, name string, accType AccountType, currency string, userID *string) (*Account, error) {
 	acc := &Account{
-		Name:   name,
-		Type:   accType,
-		UserID: userID,
+		Name:     name,
+		Type:     accType,
+		Currency: currency,
+		UserID:   userID,
 	}
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO accounts (name, type, user_id) VALUES ($1, $2, $3) RETURNING id, created_at`,
-		name, accType, userID).Scan(&acc.ID, &acc.CreatedAt)
+		`INSERT INTO accounts (name, type, currency, user_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at`,
+		name, accType, currency, userID).Scan(&acc.ID, &acc.CreatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create account: %w", err)
+		return nil, fmt.Errorf("failed to create account: %w", acc.Currency)
 	}
 	acc.Balance = 0
 	return acc, nil
@@ -81,12 +83,12 @@ func (r *Repository) GetAccount(ctx context.Context, id string) (*Account, error
 	acc := &Account{}
 	// Calculate balance on the fly from immutable entries (Projection)
 	err := r.db.QueryRowContext(ctx,
-		`SELECT a.id, a.name, a.type, COALESCE(SUM(e.amount), 0) as balance, a.user_id, a.created_at 
+		`SELECT a.id, a.name, a.type, a.currency, COALESCE(SUM(e.amount), 0) as balance, a.user_id, a.created_at 
 		 FROM accounts a 
 		 LEFT JOIN entries e ON a.id = e.account_id 
 		 WHERE a.id = $1 
 		 GROUP BY a.id`,
-		id).Scan(&acc.ID, &acc.Name, &acc.Type, &acc.Balance, &acc.UserID, &acc.CreatedAt)
+		id).Scan(&acc.ID, &acc.Name, &acc.Type, &acc.Currency, &acc.Balance, &acc.UserID, &acc.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -130,6 +132,24 @@ func (r *Repository) RecordTransaction(ctx context.Context, req TransactionReque
 		return errors.New("transaction is not balanced (sum != 0)")
 	}
 
+	// 1.5 Validate Currency Consistency
+	var commonCurrency string
+	for _, e := range req.Entries {
+		acc, err := r.GetAccount(ctx, e.AccountID)
+		if err != nil {
+			return fmt.Errorf("failed to get account %s for currency check: %w", e.AccountID, err)
+		}
+		if acc == nil {
+			return fmt.Errorf("account %s not found", e.AccountID)
+		}
+
+		if commonCurrency == "" {
+			commonCurrency = acc.Currency
+		} else if commonCurrency != acc.Currency {
+			return fmt.Errorf("multi-currency transactions not supported: account %s has currency %s, expected %s", e.AccountID, acc.Currency, commonCurrency)
+		}
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -139,7 +159,14 @@ func (r *Repository) RecordTransaction(ctx context.Context, req TransactionReque
 			log.Printf("Failed to rollback transaction: %v", err)
 		}
 	}()
-
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			log.Printf("Failed to rollback transaction: %v", err)
+		}
+	}()
 	// 2. Check for existing transaction (Idempotency)
 	var existingID string
 	err = tx.QueryRowContext(ctx, `SELECT id FROM transactions WHERE reference_id = $1`, req.ReferenceID).Scan(&existingID)

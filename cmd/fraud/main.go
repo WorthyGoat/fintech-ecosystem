@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/marwan562/fintech-ecosystem/internal/fraud"
 	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
 	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"github.com/prometheus/client_golang/prometheus"
@@ -96,7 +98,10 @@ func main() {
 		}
 	}
 
-	tracker := NewVelocityTracker()
+	engine := fraud.NewEngine(
+		&fraud.AmountRule{Limit: 1000000}, // $10,000 in cents
+		fraud.NewVelocityRule(1*time.Minute, 5),
+	)
 
 	// Start Metrics Server
 	monitoring.StartMetricsServer(":8081") // Fraud service metrics
@@ -113,19 +118,32 @@ func main() {
 			return nil
 		}
 
-		if tracker.AddAndCheck(event.Data.UserID) {
-			log.Printf("⚠️ FRAUD ALERT: High velocity detected for UserID %s", event.Data.UserID)
-			RiskyPayments.WithLabelValues("velocity_high").Inc()
+		tx := fraud.Transaction{
+			ID:       event.Data.ID,
+			Amount:   event.Data.Amount,
+			Currency: event.Data.Currency,
+			UserID:   event.Data.UserID,
+		}
 
-			if rabbitClient != nil {
-				alert := map[string]string{
-					"user_id": event.Data.UserID,
-					"reason":  "Velocity high ( >5 per minute)",
-					"time":    time.Now().Format(time.RFC3339),
-				}
-				body, _ := json.Marshal(alert)
-				if err := rabbitClient.Publish(context.Background(), "risk_alerts", body); err != nil {
-					log.Printf("Failed to publish risk alert: %v", err)
+		results, isRisky := engine.Check(context.Background(), tx)
+		if isRisky {
+			for _, res := range results {
+				if !res.Passed {
+					log.Printf("⚠️ FRAUD ALERT: %s - %s (UserID: %s)", res.RuleName, res.Message, tx.UserID)
+					RiskyPayments.WithLabelValues(res.RuleName).Inc()
+
+					if rabbitClient != nil {
+						alert := map[string]string{
+							"user_id": tx.UserID,
+							"reason":  fmt.Sprintf("%s: %s", res.RuleName, res.Message),
+							"time":    time.Now().Format(time.RFC3339),
+							"tx_id":   tx.ID,
+						}
+						body, _ := json.Marshal(alert)
+						if err := rabbitClient.Publish(context.Background(), "risk_alerts", body); err != nil {
+							log.Printf("Failed to publish risk alert: %v", err)
+						}
+					}
 				}
 			}
 		}

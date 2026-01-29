@@ -33,6 +33,9 @@ func NewRepository(db *sql.DB) *Repository {
 
 // CreatePaymentIntent inserts a new payment intent.
 func (r *Repository) CreatePaymentIntent(ctx context.Context, intent *PaymentIntent) error {
+	if intent.Currency == "" {
+		intent.Currency = "USD"
+	}
 	err := r.db.QueryRowContext(ctx,
 		`INSERT INTO payment_intents (amount, currency, status, description, user_id, application_fee_amount, on_behalf_of) 
 		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at`,
