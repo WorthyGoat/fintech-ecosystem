@@ -12,9 +12,10 @@ We focus on **three core fintech primitives** so the project stays understandabl
 |-----------|--------------|
 | **Payments** | Payment intents, confirmations, and status. No direct balance updates — all money movement goes through the ledger. |
 | **Transaction Ledger** | Double-entry accounting: accounts, entries, and balances. Single source of truth for all financial state. |
+| **Wallets** | Logic layer over the ledger for managing user balances, top-ups, and payouts with metadata. |
 | **Webhooks** | Reliable event delivery (e.g. `payment.succeeded`) with retries, signing, and local testing via the CLI. |
 
-**Design rule:** Balances are never updated directly. Every movement is a ledger transaction (event-sourced style), so you get auditability and correctness by default.
+**Design rule:** Balances are never updated directly. Every movement is a ledger transaction (double-entry), so you get auditability and correctness by default.
 
 ---
 
@@ -57,9 +58,9 @@ graph TD
 ## Example Use Cases
 
 1. **SaaS checkout** — Create a payment intent via API, confirm on your frontend, receive `payment.succeeded` via webhook; your backend credits the merchant’s ledger account (no direct balance update).
-2. **Marketplace / Connect** — Split fees: platform, developer, merchant. Use Ledger accounts per party; Payments + Ledger record who gets what.
-3. **Internal wallets** — “Wallets” are Ledger accounts (e.g. liability per user). Top-ups and payouts are ledger transactions; balance is derived from entries, never overwritten.
-4. **Compliance and audits** — Full trail: every payment produces ledger entries and events; you can replay and reconcile from logs.
+2. **Marketplace / Connect** — Split fees between platform, developer, and merchant. Use Ledger accounts per party; Payments + Ledger record exactly who gets what.
+3. **User Wallets** — “Wallets” are high-level views of Ledger accounts. Top-ups and payouts are recorded as ledger transactions; the balance is derived from the immutable entry log.
+4. **Compliance and Audit** — Every movement produces a permanent ledger entry. You can replay the entire history of any account to reconcile state or pass audits.
 
 ---
 

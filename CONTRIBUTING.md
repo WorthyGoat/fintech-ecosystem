@@ -36,30 +36,30 @@ Maintainers will review and may request changes. Once approved, your PR can be m
 
 ---
 
-## Good first issues
+### Good First Issues
 
-We use the **`good first issue`** label for tasks that are well-scoped for new contributors. Typical examples:
+We use the **`good first issue`** label for tasks that are well-scoped for new contributors. Typical examples include:
 
-- **Documentation** — Fix typos, clarify README/CONTRIBUTING, add examples or ADRs.
-- **Tests** — Add unit or table-driven tests for existing code in `internal/` or `pkg/`.
-- **Small refactors** — Extract an interface for mocking, rename for clarity, or split a large function (without changing behavior).
-- **Tooling** — Improve Makefile targets, CI config, or developer scripts.
+- **Documentation Updates** — Fix typos, clarify concepts, add example API calls.
+- **Test Coverage** — Add unit or table-driven tests for existing logic in `internal/`.
+- **Small Refactors** — Extracting interfaces, improving naming, or splitting large functions.
+- **Bug Fixes** — Resolution of verified, non-critical bugs.
 
-To find them:
-
-- [GitHub issues with `good first issue`](https://github.com/your-org/microservices/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (replace `your-org/microservices` with the real repo).
+To get started:
+1. Browse [open issues with the `good first issue` label](https://github.com/your-org/microservices/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+2. Comment on the issue to express interest and ask any clarifying questions.
+3. Once assigned, follow the [Pull Request flow](#pull-requests).
 
 If you’re unsure, comment on the issue and we’ll help you get started.
 
 ---
 
-## Commit style
+## Commit Style
 
-We use **Conventional Commits** so history and release notes stay clear.
+We strictly follow [Conventional Commits](https://www.conventionalcommits.org/) to maintain a clean git history and automate changelog generation.
 
-Format:
-
-```
+**Format:**
+```text
 <type>(<scope>): <short description>
 
 [optional body]
