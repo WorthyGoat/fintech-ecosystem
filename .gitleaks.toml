@@ -1,0 +1,8 @@
+[allowlist]
+description = "Global allowlist for documentation placeholders"
+regexes = [
+    'sk_test_YOUR_KEY',
+    'sk_live_YOUR_KEY',
+    'sk_test_[A-Z_]+',
+    'sk_live_[A-Z_]+'
+]

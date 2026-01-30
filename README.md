@@ -103,7 +103,7 @@ Save the returned `sk_test_...` (or `sk_live_...`) for the next steps.
 ```bash
 curl -s -X POST http://localhost:8080/ledger/accounts \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk_test_YOUR_KEY" \
+  -H "Authorization: Bearer <sk_test_...>" \
   -d '{"name":"Merchant main","type":"liability","currency":"USD"}'
 ```
 
@@ -115,12 +115,12 @@ Use the returned `id` as the account that will receive funds.
 # Create intent
 curl -s -X POST http://localhost:8080/payments/payment_intents \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk_test_YOUR_KEY" \
+  -H "Authorization: Bearer <sk_test_...>" \
   -d '{"amount":1000,"currency":"USD","description":"Order #123"}'
 
 # Confirm (use the intent id from previous response)
 curl -s -X POST "http://localhost:8080/payments/payment_intents/INTENT_ID/confirm" \
-  -H "Authorization: Bearer sk_test_YOUR_KEY"
+  -H "Authorization: Bearer <sk_test_...>"
 ```
 
 Confirming a payment will create ledger entries (and events); the balance for the linked account comes from the ledger, not from a direct update.
