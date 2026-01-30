@@ -1,185 +1,185 @@
-# 💳 Microservices Fintech Ecosystem
+# Fintech Ecosystem
 
-A robust, developer-first microservices platform for financial operations, featuring a secure API Gateway, distributed services, and a Stripe-inspired CLI for seamless local development.
+**Open-source financial infrastructure** — a self-hosted alternative to Stripe. Run payments, ledgers, and webhooks on your own infrastructure with a clear, minimal scope and production-ready primitives.
 
-## 🚀 Architecture
+---
 
-The system is a professional event-driven ecosystem built with **Go**, **gRPC**, **Kafka**, **RabbitMQ**, **PostgreSQL**, and **Redis**.
+## Scope: Core Primitives
+
+We focus on **three core fintech primitives** so the project stays understandable and maintainable:
+
+| Primitive | What it does |
+|-----------|--------------|
+| **Payments** | Payment intents, confirmations, and status. No direct balance updates — all money movement goes through the ledger. |
+| **Transaction Ledger** | Double-entry accounting: accounts, entries, and balances. Single source of truth for all financial state. |
+| **Webhooks** | Reliable event delivery (e.g. `payment.succeeded`) with retries, signing, and local testing via the CLI. |
+
+**Design rule:** Balances are never updated directly. Every movement is a ledger transaction (event-sourced style), so you get auditability and correctness by default.
+
+---
+
+## Architecture Overview
+
+The system is **event-driven**: an API Gateway fronts HTTP; services talk over gRPC where needed; Kafka/Redpanda and RabbitMQ handle events and async work.
 
 ```mermaid
 graph TD
-    User((User/Dev)) -->|HTTP/WS| Gateway[API Gateway :8080]
-    
-    subgraph "Internal Communication (gRPC)"
-        Gateway -->|gRPC: ValidateKey| AuthService[Auth Service :8081]
-        Gateway -->|Proxy: HTTP| PaymentsService[Payments Service :8082]
-        PaymentsService -->|gRPC: RecordTransaction| LedgerService[Ledger Service :8083]
+    User((Developer / App)) -->|HTTP + WebSocket| Gateway[API Gateway :8080]
+
+    subgraph "Core services"
+        Gateway --> Auth[Auth :8081]
+        Gateway --> Payments[Payments :8082]
+        Gateway --> Ledger[Ledger :8083]
+        Payments -->|Record transaction| Ledger
     end
 
-    subgraph "Event-Driven Backbone"
-        PaymentsService -->|Produce: payment.succeeded| Kafka[(Kafka/Redpanda)]
-        Kafka -->|Consume: Event Sourcing| LedgerService
-        
-        PaymentsService -->|Queue: NotifyTask| RabbitMQ[(RabbitMQ)]
-        RabbitMQ -->|Consume: Worker| NotificationsService[Notifications Service]
+    subgraph "Events & async"
+        Payments -->|payment.succeeded etc.| Kafka[(Kafka/Redpanda)]
+        Kafka --> Ledger
+        Payments -->|Notify task| RabbitMQ[(RabbitMQ)]
+        RabbitMQ --> Notifications[Notifications :8084]
+        Payments -->|Stream| Redis[(Redis)]
+        Redis --> Gateway
     end
-    
-    subgraph "Real-time Relay"
-        PaymentsService -->|Publish| Redis[(Redis Pub/Sub)]
-        Redis -->|Stream| Gateway
-        Gateway -->|WebSocket| CLI[Micro CLI]
-    end
+
+    Gateway -->|WebSocket| CLI[Micro CLI]
 ```
 
-- **API Gateway**: Central entry point. Uses **gRPC** for high-performance internal auth validation and handles WebSocket-based webhook streaming.
-- **Auth Service**: Manages user identity and API keys. Hosts a **gRPC server** for internal key validation.
-- **Payments Service**: Orchestrates payment processing. Acts as an event producer for Kafka and a task producer for RabbitMQ.
-- **Ledger Service**: Robust event-sourced accounting system. Consumes from **Kafka** for persistent audit trails and provides high-speed **gRPC** access for real-time balance checks.
-- **Notifications Service**: Async worker that handles email and SMS delivery via **RabbitMQ** tasks.
-- **Micro CLI**: Professional tool for local developer productivity and webhook testing.
+- **API Gateway** — Single entry point: validates API keys (via Auth), proxies to Payments/Ledger, streams webhook events over WebSocket for the CLI.
+- **Auth** — API keys, OAuth2/OIDC, scopes. gRPC for internal key validation.
+- **Payments** — Payment intents and confirmation. Produces events to Kafka and Redis; never mutates balances directly — delegates to Ledger.
+- **Ledger** — Double-entry ledger: accounts, transactions, entries. Consumes payment events from Kafka for audit; exposes gRPC/HTTP for balance and history.
+- **Notifications** — Async worker (RabbitMQ) for email/SMS and webhook delivery.
+- **Micro CLI** — Login, webhook listening (`micro listen`), local dev workflow.
 
 ---
 
-## 🛡️ Robust Messaging Infrastructure
+## Example Use Cases
 
-We have implemented a **Production-Ready RabbitMQ Client** (`messaging.RabbitMQClient`) that ensures reliability and security across all microservices.
-
-### Key Features
-- **Automatic Connection Recovery**: Self-healing client that automatically reconnects with exponential backoff strategies when the broker becomes unavailable.
-- **Circuit Breaker Pattern**: Protects the system from cascading failures during outages by temporarily halting publish operations.
-- **TLS/SSL Support**: Secure communication with certificate validation support.
-- **Graceful Shutdown**: Ensures consumers finish processing current messages before shutting down.
-- **Observability**: Built-in health checks and connection state monitoring.
-
-### Configuration
-```go
-config := messaging.Config{
-    URL:                   "amqps://user:pass@host:5671",
-    ReconnectDelay:        1 * time.Second,
-    MaxReconnectDelay:     1 * time.Minute,
-    CircuitBreakerEnabled: true,
-    CircuitBreakerThreshold: 5,
-}
-client, err := messaging.NewRabbitMQClient(config)
-```
-
-## 🛠️ Tech Stack
-
-- **Language**: Go 1.24+
-- **Internal APIs**: gRPC & Protocol Buffers
-- **Event Sourcing**: Kafka (via Redpanda)
-- **Async Workers**: RabbitMQ with Circuit Breakers & Auto-Discovery
-- **Databases**: PostgreSQL (Isolated per service)
-- **Caching/Real-time**: Redis
-- **Infrastructure**: Docker & Docker Compose
-- **CLI Framework**: Cobra & Viper
+1. **SaaS checkout** — Create a payment intent via API, confirm on your frontend, receive `payment.succeeded` via webhook; your backend credits the merchant’s ledger account (no direct balance update).
+2. **Marketplace / Connect** — Split fees: platform, developer, merchant. Use Ledger accounts per party; Payments + Ledger record who gets what.
+3. **Internal wallets** — “Wallets” are Ledger accounts (e.g. liability per user). Top-ups and payouts are ledger transactions; balance is derived from entries, never overwritten.
+4. **Compliance and audits** — Full trail: every payment produces ledger entries and events; you can replay and reconcile from logs.
 
 ---
 
-## 📦 Getting Started
+## Quick Start
 
-### 1. Launch the Ecosystem
+### 1. Run the stack
 
 ```bash
+git clone https://github.com/your-org/microservices.git
+cd microservices
 docker-compose up --build -d
 ```
-The Gateway is exposed at `http://localhost:8080`.
 
-### 2. Install Micro CLI
+Gateway: `http://localhost:8080`.
+
+### 2. Create an account and API key
+
+```bash
+# Register
+curl -s -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dev@example.com","password":"YourSecurePassword"}'
+
+# Login (get JWT)
+curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dev@example.com","password":"YourSecurePassword"}'
+
+# Create an API key (use the JWT from login in Authorization header)
+curl -s -X POST http://localhost:8080/auth/api_keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_JWT>" \
+  -d '{"name":"My key","environment":"test"}' 
+```
+
+Save the returned `sk_test_...` (or `sk_live_...`) for the next steps.
+
+### 3. Create a ledger account (balance holder)
+
+```bash
+curl -s -X POST http://localhost:8080/ledger/accounts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk_test_YOUR_KEY" \
+  -d '{"name":"Merchant main","type":"liability","currency":"USD"}'
+```
+
+Use the returned `id` as the account that will receive funds.
+
+### 4. Create and confirm a payment intent
+
+```bash
+# Create intent
+curl -s -X POST http://localhost:8080/payments/payment_intents \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk_test_YOUR_KEY" \
+  -d '{"amount":1000,"currency":"USD","description":"Order #123"}'
+
+# Confirm (use the intent id from previous response)
+curl -s -X POST "http://localhost:8080/payments/payment_intents/INTENT_ID/confirm" \
+  -H "Authorization: Bearer sk_test_YOUR_KEY"
+```
+
+Confirming a payment will create ledger entries (and events); the balance for the linked account comes from the ledger, not from a direct update.
+
+### 5. Listen for webhooks locally (no tunnel)
 
 ```bash
 go build -o micro ./cmd/cli
+./micro login   # authenticate with the same gateway
+./micro listen --forward-to http://localhost:4242/webhook
 ```
 
-### 3. Developer Onboarding
+Trigger a payment confirmation; you’ll see `payment.succeeded` (and related events) in the CLI and optionally forwarded to your local server.
 
-```bash
-# Register a new developer account
-curl -X POST http://localhost:8080/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "dev@example.com", "password": "securepassword"}'
+---
 
-# Login via CLI
-./micro login
+## API Reference (summary)
+
+| Service | Port | Key endpoints |
+|---------|------|----------------|
+| **Auth** | 8081 | `POST /auth/register`, `POST /auth/login`, `POST /auth/api_keys` |
+| **Payments** | 8082 | `POST /payments/payment_intents`, `POST /payments/payment_intents/:id/confirm` |
+| **Ledger** | 8083 | `POST /ledger/accounts`, `GET /ledger/accounts/:id`, `POST /ledger/transactions` |
+
+Use **Gateway** at `:8080` for all HTTP calls; send `Authorization: Bearer sk_...` for Payments and Ledger.
+
+---
+
+## Tech Stack
+
+- **Go** 1.24+
+- **gRPC** and **Protocol Buffers** for internal APIs
+- **PostgreSQL** (one DB per service)
+- **Kafka (Redpanda)** for event sourcing and audit
+- **RabbitMQ** for async jobs (e.g. notifications)
+- **Redis** for real-time webhook streaming to the CLI
+- **Docker Compose** and **Kubernetes/Helm** for deployment
+
+---
+
+## Project layout (high level)
+
+```
+cmd/          # Service entrypoints (auth, payments, ledger, gateway, notifications, cli, …)
+internal/     # Domain and infra (payment, ledger, notification, auth, …)
+pkg/          # Shared libs (jwt, db, messaging, monitoring)
+proto/        # gRPC and API definitions
+deploy/       # K8s and Helm
+migrations/   # Per-service SQL migrations
 ```
 
 ---
 
-## 📖 API Reference
+## Roadmap and contributing
 
-### 🔐 Auth Service
-Requires session JWT for key management.
-- **gRPC Port**: `:50051` (Internal Validation)
-- **HTTP Port**: `:8081` (Management)
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/auth/register` | `POST` | Create a new developer account |
-| `/auth/login` | `POST` | Authenticate and receive JWT |
-| `/auth/api_keys` | `POST` | Generate a new API key (`test` or `live`) |
-
-### 💸 Payments Service
-Requires `Authorization: Bearer sk_<key>` header.
-- **Port**: `:8082`
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/payments/payment_intents` | `POST` | Create a new payment intent |
-| `/payments/payment_intents/{id}/confirm` | `POST` | Confirm a payment intent |
-
-### 📒 Ledger Service
-Consumes events from Kafka and provides state via gRPC.
-- **gRPC Port**: `:50052`
-- **HTTP Port**: `:8083`
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/ledger/accounts` | `POST` | Create a financial account |
-| `/ledger/accounts/{id}` | `GET` | View account balance and type |
-| `/ledger/transactions` | `POST` | Record a double-entry transaction |
+- **Roadmap** — Quality (tests, idempotency, layering), growth, and a path to hosted/paid offerings: [ROADMAP.md](ROADMAP.md).
+- **Contributing** — Good first issues, commit style, and how to run tests: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## ⚡ Real-time Webhooks
+## License
 
-Test local integrations without tunnels:
-
-1. **Listen for events**:
-   ```bash
-   ./micro listen --forward-to http://localhost:4242/webhook
-   ```
-2. **Workflow**: 
-   - Payment confirmed -> Event published to **Redis** (Real-time Relay) & **Kafka** (Persistent Audit).
-   - Gateway relays Redis pub/sub to the CLI via WebSocket.
-
----
-
-## 💻 Developer Guide
-
-### Makefile Commands
-- `make build`: Build all services locally.
-- `make proto`: Re-generate Go code from Protobuf definitions.
-- `make test`: Run the test suite.
-- `make clean`: Remove binaries and temporary files.
-
-### Database Access
-Connect via `psql` (passwords are in `docker-compose.yml`):
-- `psql postgres://user:password@localhost:5433/microservices` (Auth)
-- `psql postgres://user:password@localhost:5434/payments` (Payments)
-- `psql postgres://user:password@localhost:5435/ledger` (Ledger)
-
-### Infrastructure Access
-- **RabbitMQ Management**: `http://localhost:15672` (User: `user`, Pass: `password`)
-- **Redpanda Console**: (Available if console is added to compose)
-
----
-
-## 🗺️ Roadmap
-
-We are actively working on making this a complete open-source alternative to Stripe. Check out our [Roadmap](ROADMAP.md) for upcoming features like Kubernetes support, a React Dashboard, and Subscription management.
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+MIT. See [LICENSE](LICENSE).
