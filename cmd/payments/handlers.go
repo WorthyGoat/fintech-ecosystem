@@ -37,8 +37,22 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 			return
 		}
 
-		// Check if key exists
-		record, err := h.repo.GetIdempotencyKey(r.Context(), key)
+		userID, err := extractUserIDFromToken(r)
+		if err != nil {
+			log.Printf("Error extracting user ID: %v", err)
+			jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+			return
+		}
+		if userID == "" {
+			// If we require authentication for idempotency, we should fail here.
+			// However, extractUserIDFromToken might return "" if no auth is present.
+			// Let's assume for now that if an Idempotency-Key is provided, we need a user.
+			jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Authentication required for idempotent requests"})
+			return
+		}
+
+		// Check if key exists for this user
+		record, err := h.repo.GetIdempotencyKey(r.Context(), userID, key)
 		if err != nil {
 			log.Printf("Error checking idempotency key: %v", err)
 			jsonutil.WriteErrorJSON(w, "Internal Server Error")
@@ -62,12 +76,11 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 
 		next(recorder, r)
 
-		// Save key asynchronously or synchronously?
-		// Synchronously is safer for strict idempotency to ensure it's there before client retries.
-		if err := h.repo.SaveIdempotencyKey(r.Context(), key, recorder.StatusCode, recorder.Body.String()); err != nil {
-			log.Printf("Failed to save idempotency key: %v", err)
-			// We don't fail the request if saving the key fails, but we log it.
-			// Or maybe we should?
+		// Save key if it's not a server error (5xx)
+		if recorder.StatusCode < 500 {
+			if err := h.repo.SaveIdempotencyKey(r.Context(), userID, key, recorder.StatusCode, recorder.Body.String()); err != nil {
+				log.Printf("Failed to save idempotency key: %v", err)
+			}
 		}
 	}
 }

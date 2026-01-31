@@ -69,8 +69,8 @@ graph TD
 ### 1. Run the stack
 
 ```bash
-git clone https://github.com/your-org/microservices.git
-cd microservices
+git clone https://github.com/Sapliy/fintech-ecosystem.git
+cd fintech-ecosystem
 docker-compose up --build -d
 ```
 
