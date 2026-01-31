@@ -100,15 +100,16 @@ func (r *Repository) UpdateStatus(ctx context.Context, id, status string) error 
 
 // IdempotencyRecord keys response.
 type IdempotencyRecord struct {
+	UserID       string
 	Key          string
 	ResponseBody string
 	StatusCode   int
 }
 
-func (r *Repository) GetIdempotencyKey(ctx context.Context, key string) (*IdempotencyRecord, error) {
+func (r *Repository) GetIdempotencyKey(ctx context.Context, userID, key string) (*IdempotencyRecord, error) {
 	var rec IdempotencyRecord
-	err := r.db.QueryRowContext(ctx, "SELECT key, response_body, status_code FROM idempotency_keys WHERE key = $1", key).
-		Scan(&rec.Key, &rec.ResponseBody, &rec.StatusCode)
+	err := r.db.QueryRowContext(ctx, "SELECT user_id, key, response_body, status_code FROM idempotency_keys WHERE user_id = $1 AND key = $2", userID, key).
+		Scan(&rec.UserID, &rec.Key, &rec.ResponseBody, &rec.StatusCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -118,7 +119,7 @@ func (r *Repository) GetIdempotencyKey(ctx context.Context, key string) (*Idempo
 	return &rec, nil
 }
 
-func (r *Repository) SaveIdempotencyKey(ctx context.Context, key string, statusCode int, body string) error {
-	_, err := r.db.ExecContext(ctx, "INSERT INTO idempotency_keys (key, response_body, status_code) VALUES ($1, $2, $3)", key, body, statusCode)
+func (r *Repository) SaveIdempotencyKey(ctx context.Context, userID, key string, statusCode int, body string) error {
+	_, err := r.db.ExecContext(ctx, "INSERT INTO idempotency_keys (user_id, key, response_body, status_code) VALUES ($1, $2, $3, $4)", userID, key, body, statusCode)
 	return err
 }

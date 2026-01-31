@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS payment_intents (
 CREATE INDEX IF NOT EXISTS idx_payment_intents_user_id ON payment_intents(user_id);
 
 CREATE TABLE IF NOT EXISTS idempotency_keys (
-    key VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL,
+    key VARCHAR(255) NOT NULL,
     response_body TEXT NOT NULL,
     status_code INT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, key)
 );
